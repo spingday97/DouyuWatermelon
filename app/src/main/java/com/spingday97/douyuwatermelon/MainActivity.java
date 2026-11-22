@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.MutableContextWrapper;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -121,7 +122,7 @@ bar.addView(btnMore);
         boolean isNew = (WebViewHolder.webView == null);
         if (isNew) {
             WebView.setWebContentsDebuggingEnabled(true);
-            webView = new WebView(getApplicationContext());
+            webView = new WebView(new MutableContextWrapper(this));
             WebSettings ws = webView.getSettings();
             ws.setJavaScriptEnabled(true);
             ws.setDomStorageEnabled(true);
