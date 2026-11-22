@@ -26,6 +26,9 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 public class MainActivity extends Activity {
     private static final String PREF_NAME = "wm_prefs";
@@ -167,17 +170,40 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    private void runDiag() {
-        String jsLen = String.valueOf(WatermelonScript.getScript().length());
-        if (webView == null) {
-            Toast.makeText(this, "WebView=null, jsLen=" + jsLen, Toast.LENGTH_LONG).show();
-            return;
-        }
-        webView.evaluateJavascript(
-                "(function(){try{return 'wm9='+!!window.__WM9__+',cc='+!!(window.cc&&window.cc.director)+',ifr='+document.querySelectorAll('iframe').length+',path='+location.pathname;}catch(e){return 'err:'+e;}})()",
-                val -> Toast.makeText(this, "jsLen=" + jsLen + " | " + val, Toast.LENGTH_LONG).show()
-        );
-    }
+   private void runDiag() {
+String jsLen = String.valueOf(WatermelonScript.getScript(this).length());
+boolean hasCustom = getSharedPreferences("wm_prefs", MODE_PRIVATE).contains("custom_script");
+String src = hasCustom ? "自定义" : "内置";
+if (webView == null) {
+showDiagDialog("WebView=null, jsLen=" + jsLen + " (" + src + ")");
+return;
+}
+webView.evaluateJavascript(
+"(function(){try{return 'wm9='+!!window.__WM9__+',cc='+!!(window.cc&&window.cc.director)+',ifr='+document.querySelectorAll('iframe').length+',path='+location.pathname;}catch(e){return 'err:'+e;}})()",
+val -> showDiagDialog("jsLen=" + jsLen + " (" + src + ")" + (char) 10 + val)
+);
+}
+
+private void showDiagDialog(String msg) {
+new AlertDialog.Builder(this)
+.setTitle("诊断与脚本")
+.setMessage(msg)
+.setPositiveButton("导入本地脚本", (d, w) -> {
+Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+intent.addCategory(Intent.CATEGORY_OPENABLE);
+intent.setType("*/*");
+startActivityForResult(intent, 1002);
+})
+.setNeutralButton("恢复内置脚本", (d, w) -> {
+getSharedPreferences("wm_prefs", MODE_PRIVATE).edit().remove("custom_script").apply();
+Toast.makeText(this, "已恢复内置脚本", Toast.LENGTH_SHORT).show();
+if (scriptEnabled && webView != null) {
+webView.reload();
+}
+})
+.setNegativeButton("关闭", null)
+.show();
+}
 
     private void attachWebView() {
         stopService(new Intent(this, FloatingKeepAliveService.class));
@@ -257,7 +283,7 @@ public class MainActivity extends Activity {
 
     private void injectWatermelon() {
         if (!scriptEnabled || webView == null) return;
-        String js = WatermelonScript.getScript();
+        String js = WatermelonScript.getScript(this);
         if (js != null && !js.isEmpty()) {
             webView.evaluateJavascript(js, null);
         }
@@ -281,4 +307,32 @@ public class MainActivity extends Activity {
             super.onBackPressed();
         }
     }
+
+@Override
+protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+super.onActivityResult(requestCode, resultCode, data);
+if (requestCode == 1002 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+Uri uri = data.getData();
+try (InputStream is = getContentResolver().openInputStream(uri);
+BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
+StringBuilder sb = new StringBuilder();
+String line;
+while ((line = reader.readLine()) != null) {
+sb.append(line).append((char) 10);
+}
+String script = sb.toString();
+if (script.trim().isEmpty()) {
+Toast.makeText(this, "脚本内容为空", Toast.LENGTH_SHORT).show();
+return;
+}
+getSharedPreferences("wm_prefs", MODE_PRIVATE).edit().putString("custom_script", script).apply();
+Toast.makeText(this, "已导入本地脚本 (" + script.length() + " chars)", Toast.LENGTH_SHORT).show();
+if (scriptEnabled && webView != null) {
+injectWatermelon();
+}
+} catch (Exception e) {
+Toast.makeText(this, "导入失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+}
+}
+}
 }
