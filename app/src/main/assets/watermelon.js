@@ -218,6 +218,13 @@
     return d.getMinutes() < 30 ? CFG.scoreRaceFirst : CFG.scoreRaceSecond;
   }
 
+  function capSegName() {
+    if (!CFG.dynScore) return '固定线';
+    var d = new Date(), mot = d.getHours() * 60 + d.getMinutes();
+    if (mot >= 30 && mot < 720) return '00:30–12:00';
+    return d.getMinutes() < 30 ? '整点前30分' : '整点后30分';
+  }
+
   function openBattle() {
     if (S.opening || nowSec() < S.openBlockUntil) return;
     var ug = userGameInfo();
@@ -270,46 +277,92 @@
   function buildPanel() {
     if (document.getElementById('wm9_panel')) return;
     var st = document.createElement('style');
-    st.textContent = '#wm9_panel{position:fixed;top:12px;right:8px;z-index:999999;width:196px;background:rgba(22,25,34,.92);backdrop-filter:blur(8px);color:#F3F4F6;border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35);font:11px/1.4 sans-serif;overflow:hidden}' +
-      '#wm9_panel.min{width:auto;border-radius:999px}#wm9_panel.min .bd{display:none}' +
-      '#wm9_panel .hd{background:rgba(255,255,255,.04);color:#F3F4F6;padding:7px 10px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px}' +
-      '#wm9_panel .bd{padding:7px 9px}#wm9_panel .row{display:flex;justify-content:space-between;align-items:center;margin:3px 0}' +
-      '#wm9_panel .btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}' +
-      '#wm9_panel select{background:#242938;color:#F3F4F6;border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:2px 6px;font-size:11px}#wm9_panel button{border:0;border-radius:8px;padding:6px 0;color:#fff;font-weight:700;cursor:pointer}';
+    st.textContent = '#wm9_panel{position:fixed;top:10px;right:8px;z-index:999999;width:214px;max-height:76vh;overflow-y:auto;background:rgba(22,25,34,.92);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35);font:11px/1.45 sans-serif;color:#F3F4F6}' +
+      '#wm9_panel.min{width:auto;overflow:hidden}#wm9_panel.min .bd{display:none}' +
+      '#wm9_panel .hd{background:rgba(255,255,255,.06);color:#fff;padding:7px 10px;font-weight:700;display:flex;align-items:center;gap:6px;position:sticky;top:0}' +
+      '#wm9_panel .bd{padding:7px 10px}#wm9_panel .row{display:flex;justify-content:space-between;align-items:center;margin:4px 0}' +
+      '#wm9_panel .k{color:#9CA3AF}' +
+      '#wm9_panel select,#wm9_panel input[type=text]{background:#242938;color:#fff;border:1px solid #353C50;border-radius:8px;padding:2px 6px;font-size:11px}' +
+      '#wm9_panel input[type=checkbox]{accent-color:#FF6A3D}' +
+      '#wm9_panel .btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}' +
+      '#wm9_panel button{border:0;border-radius:8px;padding:6px 0;color:#fff;font-weight:700;font-size:11px}';
     document.head.appendChild(st);
     var el = document.createElement('div');
     el.id = 'wm9_panel'; el.className = 'min';
-    el.innerHTML = '<div class="hd"><span id="wm9_ttl">🍉 ● 20000 · 0局</span><span id="wm9_fold" style="background:rgba(255,255,255,.25);padding:0 6px;border-radius:4px">＋</span></div>' +
+    el.innerHTML = '<div class="hd"><span id="wm9_ttl">🍉 挂机</span><span id="wm9_fold" style="background:rgba(255,255,255,.16);padding:0 7px;border-radius:6px;cursor:pointer">＋</span></div>' +
       '<div class="bd">' +
-      '<div class="row"><span>状态</span><b id="wm9_run">–</b></div>' +
+      '<div class="row"><span class="k">状态</span><b id="wm9_run">–</b></div>' +
       '<div class="row"><span>掉落等级</span><select id="wm9_lv"></select></div>' +
       '<div class="row"><span>清扫线</span><select id="wm9_line"><option value="10">敲L10(假锤)</option><option value="11">敲L11(真锤)</option></select></div>' +
-      '<div class="row"><span>本段上限</span><b id="wm9_cap">–</b></div>' +
-      '<div class="row"><span>分数</span><b id="wm9_sc">–</b></div>' +
-      '<div class="row"><span>局/投/合</span><b id="wm9_stat">–</b></div>' +
-      '<div class="row"><span>L11/真锤</span><b id="wm9_l11">–</b></div>' +
+      '<div class="row"><span>合出N个L11换局</span><input id="wm9_reopen11" type="text" inputmode="numeric" style="width:40px;text-align:right"></div>' +
+      '<div class="row"><span>直合</span><input type="checkbox" id="wm9_merge"></div>' +
+      '<div class="row"><span>清扫器</span><input type="checkbox" id="wm9_sweep"></div>' +
+      '<div class="row"><span>L11 走真锤</span><input type="checkbox" id="wm9_realh"></div>' +
+      '<div class="row"><span>自动开跑/续局</span><input type="checkbox" id="wm9_sched"></div>' +
+      '<div class="row"><span>动态上限</span><input type="checkbox" id="wm9_dyn"></div>' +
+      '<div class="row"><span>固定上限</span><input id="wm9_score" type="text" inputmode="numeric" style="width:56px;text-align:right"></div>' +
+      '<div class="row"><span class="k">本段上限</span><b id="wm9_cap">–</b></div>' +
+      '<div class="row"><span class="k">当前分数</span><b id="wm9_sc">–</b></div>' +
+      '<div class="row"><span class="k">局/投/合</span><b id="wm9_stat">–</b></div>' +
+      '<div class="row"><span class="k">敲L10/免费L11</span><b id="wm9_swept">–</b></div>' +
+      '<div class="row"><span class="k">真锤L11/花费</span><b id="wm9_realc">–</b></div>' +
+      '<div class="row"><span class="k">本局L11/换局线</span><b id="wm9_l11">–</b></div>' +
+      '<div class="row"><span class="k">盘面</span><b id="wm9_board" style="max-width:130px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">–</b></div>' +
+      '<div class="row"><span class="k">西瓜币</span><b id="wm9_coin">–</b></div>' +
       '<div class="btns"><button id="wm9_go" style="background:#FF6A3D">▶ 开跑</button><button id="wm9_halt" style="background:#374151">■ 停止</button></div>' +
       '</div>';
     document.body.appendChild(el);
+
     var sel = el.querySelector('#wm9_lv');
     for (var i = 1; i <= 11; i++) { var o = document.createElement('option'); o.value = i; o.textContent = 'L' + i; sel.appendChild(o); }
-    sel.value = '9';
+    sel.value = String(CFG.feedLevel);
     sel.onchange = function (e) { CFG.feedLevel = Number(e.target.value) || 9; };
+    el.querySelector('#wm9_line').value = String(CFG.sweepLine);
     el.querySelector('#wm9_line').onchange = function (e) { CFG.sweepLine = Number(e.target.value) === 11 ? 11 : 10; };
+    el.querySelector('#wm9_reopen11').value = String(CFG.reopenAtL11);
+    el.querySelector('#wm9_reopen11').onchange = function (e) { var n = Number(e.target.value); CFG.reopenAtL11 = (isFinite(n) && n > 0) ? Math.round(n) : 0; };
+    el.querySelector('#wm9_merge').checked = CFG.mergeOn;
+    el.querySelector('#wm9_merge').onchange = function (e) { CFG.mergeOn = e.target.checked; };
+    el.querySelector('#wm9_sweep').checked = CFG.sweepOn;
+    el.querySelector('#wm9_sweep').onchange = function (e) { CFG.sweepOn = e.target.checked; };
+    el.querySelector('#wm9_realh').checked = CFG.realHammerOn;
+    el.querySelector('#wm9_realh').onchange = function (e) { CFG.realHammerOn = e.target.checked; S.realFailStreak = 0; };
+    el.querySelector('#wm9_sched').checked = CFG.autoRun;
+    el.querySelector('#wm9_sched').onchange = function (e) { CFG.autoRun = e.target.checked; };
+    el.querySelector('#wm9_dyn').checked = CFG.dynScore;
+    el.querySelector('#wm9_dyn').onchange = function (e) { CFG.dynScore = e.target.checked; };
+    el.querySelector('#wm9_score').value = String(CFG.scoreTarget);
+    el.querySelector('#wm9_score').onchange = function (e) { var n = Number(e.target.value); CFG.scoreTarget = (isFinite(n) && n > 0) ? Math.round(n) : 0; };
+
     el.querySelector('#wm9_go').onclick = function () { S.userHalt = false; S.running = true; };
     el.querySelector('#wm9_halt').onclick = function () { S.userHalt = true; S.running = false; };
     el.querySelector('#wm9_fold').onclick = function () {
       var min = el.classList.toggle('min');
       el.querySelector('#wm9_fold').textContent = min ? '＋' : '–';
     };
+
     setInterval(function () {
+      var ae = document.activeElement;
       var g = findGame(), sc = g && alive(g) ? (Number(g.renderedScore) || 0) : '–';
-      el.querySelector('#wm9_ttl').textContent = (S.running ? '🍉 ● ' : '🍉 ○ ') + scoreCap() + ' · ' + S.battles + '局';
-      el.querySelector('#wm9_run').textContent = S.running ? '运行中' : '已停止';
-      el.querySelector('#wm9_cap').textContent = scoreCap() + '分';
+      var board = '–';
+      if (g && alive(g)) {
+        var h = {};
+        try { g.fruits.forEach(function (f) { h[Number(f.level) || 0] = (h[Number(f.level) || 0] || 0) + 1; }); } catch (e) {}
+        board = Object.keys(h).map(Number).sort(function (a, b) { return a - b; }).map(function (k) { return 'L' + k + ':' + h[k]; }).join(' ') || '空';
+      }
+      var ug = userGameInfo();
+      el.querySelector('#wm9_ttl').textContent = (S.running ? '🍉● ' : '🍉○ ') + scoreCap() + ' · ' + S.battles + '局';
+      el.querySelector('#wm9_run').textContent = S.running ? '● 运行中' : '○ 已停止';
+      el.querySelector('#wm9_run').style.color = S.running ? '#34D399' : '#9CA3AF';
+      el.querySelector('#wm9_cap').textContent = scoreCap() + '·' + capSegName();
       el.querySelector('#wm9_sc').textContent = sc;
       el.querySelector('#wm9_stat').textContent = S.battles + '/' + S.drops + '/' + S.merges;
-      el.querySelector('#wm9_l11').textContent = S.l11ThisBattle + '/' + S.realUsed + '次';
+      el.querySelector('#wm9_swept').textContent = S.swept10 + '/' + S.swept11;
+      el.querySelector('#wm9_realc').textContent = S.realUsed + '次/' + S.realSpent + '币';
+      el.querySelector('#wm9_l11').textContent = S.l11ThisBattle + '/' + (CFG.reopenAtL11 || '关') + '(共' + S.l11Total + ')';
+      el.querySelector('#wm9_board').textContent = board;
+      el.querySelector('#wm9_coin').textContent = ug ? (ug.account + (ug.freeGameNum ? '(免' + ug.freeGameNum + ')' : '')) : '–';
+      if (ae !== el.querySelector('#wm9_score')) el.querySelector('#wm9_score').style.opacity = CFG.dynScore ? '0.45' : '1';
     }, 1000);
   }
 
