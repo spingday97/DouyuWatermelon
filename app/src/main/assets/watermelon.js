@@ -270,16 +270,16 @@
   function buildPanel() {
     if (document.getElementById('wm9_panel')) return;
     var st = document.createElement('style');
-    st.textContent = '#wm9_panel{position:fixed;top:12px;right:8px;z-index:999999;width:196px;background:rgba(255,255,255,.95);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.22);font:11px/1.4 sans-serif;color:#222;overflow:hidden}' +
-      '#wm9_panel.min{width:auto}#wm9_panel.min .bd{display:none}' +
-      '#wm9_panel .hd{background:linear-gradient(135deg,#ff7a45,#ff4d1f);color:#fff;padding:6px 9px;font-weight:700;display:flex;align-items:center;gap:6px}' +
+    st.textContent = '#wm9_panel{position:fixed;top:12px;right:8px;z-index:999999;width:196px;background:rgba(22,25,34,.92);backdrop-filter:blur(8px);color:#F3F4F6;border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35);font:11px/1.4 sans-serif;overflow:hidden}' +
+      '#wm9_panel.min{width:auto;border-radius:999px}#wm9_panel.min .bd{display:none}' +
+      '#wm9_panel .hd{background:rgba(255,255,255,.04);color:#F3F4F6;padding:7px 10px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px}' +
       '#wm9_panel .bd{padding:7px 9px}#wm9_panel .row{display:flex;justify-content:space-between;align-items:center;margin:3px 0}' +
       '#wm9_panel .btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}' +
-      '#wm9_panel button{border:0;border-radius:6px;padding:5px 0;color:#fff;font-weight:700}';
+      '#wm9_panel select{background:#242938;color:#F3F4F6;border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:2px 6px;font-size:11px}#wm9_panel button{border:0;border-radius:8px;padding:6px 0;color:#fff;font-weight:700;cursor:pointer}';
     document.head.appendChild(st);
     var el = document.createElement('div');
     el.id = 'wm9_panel'; el.className = 'min';
-    el.innerHTML = '<div class="hd"><span id="wm9_ttl">🍉 挂机</span><span id="wm9_fold" style="background:rgba(255,255,255,.25);padding:0 6px;border-radius:4px">＋</span></div>' +
+    el.innerHTML = '<div class="hd"><span id="wm9_ttl">🍉 ● 20000 · 0局</span><span id="wm9_fold" style="background:rgba(255,255,255,.25);padding:0 6px;border-radius:4px">＋</span></div>' +
       '<div class="bd">' +
       '<div class="row"><span>状态</span><b id="wm9_run">–</b></div>' +
       '<div class="row"><span>掉落等级</span><select id="wm9_lv"></select></div>' +
@@ -288,7 +288,7 @@
       '<div class="row"><span>分数</span><b id="wm9_sc">–</b></div>' +
       '<div class="row"><span>局/投/合</span><b id="wm9_stat">–</b></div>' +
       '<div class="row"><span>L11/真锤</span><b id="wm9_l11">–</b></div>' +
-      '<div class="btns"><button id="wm9_go" style="background:#ff6a3d">开跑</button><button id="wm9_halt" style="background:#9ca3af">停止</button></div>' +
+      '<div class="btns"><button id="wm9_go" style="background:#FF6A3D">▶ 开跑</button><button id="wm9_halt" style="background:#374151">■ 停止</button></div>' +
       '</div>';
     document.body.appendChild(el);
     var sel = el.querySelector('#wm9_lv');
@@ -304,7 +304,7 @@
     };
     setInterval(function () {
       var g = findGame(), sc = g && alive(g) ? (Number(g.renderedScore) || 0) : '–';
-      el.querySelector('#wm9_ttl').textContent = (S.running ? '🍉● ' : '🍉○ ') + scoreCap() + ' · ' + S.battles + '局';
+      el.querySelector('#wm9_ttl').textContent = (S.running ? '🍉 ● ' : '🍉 ○ ') + scoreCap() + ' · ' + S.battles + '局';
       el.querySelector('#wm9_run').textContent = S.running ? '运行中' : '已停止';
       el.querySelector('#wm9_cap').textContent = scoreCap() + '分';
       el.querySelector('#wm9_sc').textContent = sc;
