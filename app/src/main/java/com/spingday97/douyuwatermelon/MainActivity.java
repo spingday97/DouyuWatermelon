@@ -2,13 +2,16 @@ package com.spingday97.douyuwatermelon;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -18,14 +21,16 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String GAME_URL =
-            "https://www.douyu.com/pages/vibe-lab-act202607-game/home?dykeepalive=1&isAnchorSide=0&rid=217331&isLandscape=0";
+    private static final String PREF_NAME = "wm_prefs";
+    private static final String KEY_RID = "room_id";
+    private static final String DEFAULT_RID = "217331";
     private static final String LOGIN_URL = "https://passport.douyu.com/";
 
     private FrameLayout webContainer;
@@ -34,12 +39,22 @@ public class MainActivity extends Activity {
     private boolean scriptEnabled = true;
     private TextView btnKeepScreen;
     private TextView btnScript;
+    private TextView btnRoom;
+    private String currentRid = DEFAULT_RID;
     private final Handler handler = new Handler(Looper.getMainLooper());
+
+    private String getGameUrl() {
+        return "https://www.douyu.com/pages/vibe-lab-act202607-game/home?dykeepalive=1&isAnchorSide=0&rid="
+                + currentRid + "&isLandscape=0";
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        currentRid = prefs.getString(KEY_RID, DEFAULT_RID);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -51,25 +66,20 @@ public class MainActivity extends Activity {
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setBackgroundColor(Color.parseColor("#1C212B"));
-        int padH = dp(8);
+        int padH = dp(6);
         int padV = dp(6);
         bar.setPadding(padH, padV, padH, padV);
 
-        TextView title = new TextView(this);
-        title.setText("🍉");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(15);
-        LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        bar.addView(title, titleLp);
-
-        bar.addView(makeBtn("活动页", "#FF6A3D", v -> webView.loadUrl(GAME_URL)));
+        bar.addView(makeBtn("活动", "#FF6A3D", v -> webView.loadUrl(getGameUrl())));
+        btnRoom = makeBtn("房:" + currentRid, "#374151", v -> showRoomDialog());
+        bar.addView(btnRoom);
         bar.addView(makeBtn("登录", "#2D3648", v -> webView.loadUrl(LOGIN_URL)));
         bar.addView(makeBtn("悬浮", "#2563EB", v -> enterFloatingMode()));
-        btnKeepScreen = makeBtn("常亮:开", "#2D6A4F", v -> toggleKeepScreen());
+        btnKeepScreen = makeBtn("常亮", "#2D6A4F", v -> toggleKeepScreen());
         bar.addView(btnKeepScreen);
-        btnScript = makeBtn("脚本:开", "#2D6A4F", v -> toggleScript());
+        btnScript = makeBtn("脚本", "#2D6A4F", v -> toggleScript());
         bar.addView(btnScript);
-        bar.addView(makeBtn("刷新", "#2D3648", v -> webView.reload()));
+        bar.addView(makeBtn("诊断", "#4B5563", v -> runDiag()));
 
         root.addView(bar, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -84,6 +94,7 @@ public class MainActivity extends Activity {
 
         boolean isNew = (WebViewHolder.webView == null);
         if (isNew) {
+            WebView.setWebContentsDebuggingEnabled(true);
             webView = new WebView(getApplicationContext());
             WebSettings ws = webView.getSettings();
             ws.setJavaScriptEnabled(true);
@@ -93,6 +104,10 @@ public class MainActivity extends Activity {
             ws.setLoadWithOverviewMode(true);
             ws.setMediaPlaybackRequiresUserGesture(false);
             ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            String ua = ws.getUserAgentString();
+            if (ua != null) {
+                ws.setUserAgentString(ua.replace("; wv)", ")"));
+            }
 
             CookieManager cm = CookieManager.getInstance();
             cm.setAcceptCookie(true);
@@ -124,8 +139,44 @@ public class MainActivity extends Activity {
 
         attachWebView();
         if (isNew) {
-            webView.loadUrl(GAME_URL);
+            webView.loadUrl(getGameUrl());
         }
+    }
+
+    private void showRoomDialog() {
+        EditText et = new EditText(this);
+        et.setInputType(InputType.TYPE_CLASS_NUMBER);
+        et.setText(currentRid);
+        et.setSelection(et.getText().length());
+        et.setHint("输入斗鱼直播间号");
+
+        new AlertDialog.Builder(this)
+                .setTitle("切换直播间")
+                .setView(et)
+                .setPositiveButton("确定", (d, w) -> {
+                    String rid = et.getText().toString().trim();
+                    if (!rid.isEmpty()) {
+                        currentRid = rid;
+                        getSharedPreferences(PREF_NAME, MODE_PRIVATE)
+                                .edit().putString(KEY_RID, currentRid).apply();
+                        btnRoom.setText("房:" + currentRid);
+                        webView.loadUrl(getGameUrl());
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void runDiag() {
+        String jsLen = String.valueOf(WatermelonScript.getScript().length());
+        if (webView == null) {
+            Toast.makeText(this, "WebView=null, jsLen=" + jsLen, Toast.LENGTH_LONG).show();
+            return;
+        }
+        webView.evaluateJavascript(
+                "(function(){try{return 'wm9='+!!window.__WM9__+',cc='+!!(window.cc&&window.cc.director)+',ifr='+document.querySelectorAll('iframe').length+',path='+location.pathname;}catch(e){return 'err:'+e;}})()",
+                val -> Toast.makeText(this, "jsLen=" + jsLen + " | " + val, Toast.LENGTH_LONG).show()
+        );
     }
 
     private void attachWebView() {
@@ -167,7 +218,7 @@ public class MainActivity extends Activity {
         tv.setText(text);
         tv.setTextColor(Color.WHITE);
         tv.setTextSize(11);
-        tv.setPadding(dp(7), dp(4), dp(7), dp(4));
+        tv.setPadding(dp(6), dp(4), dp(6), dp(4));
         tv.setBackgroundColor(Color.parseColor(bgHex));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -181,8 +232,8 @@ public class MainActivity extends Activity {
     private void toggleKeepScreen() {
         keepScreenOn = !keepScreenOn;
         applyKeepScreen();
-        btnKeepScreen.setText(keepScreenOn ? "常亮:开" : "常亮:关");
         btnKeepScreen.setBackgroundColor(Color.parseColor(keepScreenOn ? "#2D6A4F" : "#4B5563"));
+        Toast.makeText(this, keepScreenOn ? "已开启屏幕常亮" : "已关闭屏幕常亮", Toast.LENGTH_SHORT).show();
     }
 
     private void applyKeepScreen() {
@@ -195,11 +246,10 @@ public class MainActivity extends Activity {
 
     private void toggleScript() {
         scriptEnabled = !scriptEnabled;
-        btnScript.setText(scriptEnabled ? "脚本:开" : "脚本:关");
         btnScript.setBackgroundColor(Color.parseColor(scriptEnabled ? "#2D6A4F" : "#4B5563"));
         if (scriptEnabled) {
             injectWatermelon();
-            Toast.makeText(this, "已注入挂机脚本", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "已开启并注入挂机脚本", Toast.LENGTH_SHORT).show();
         } else {
             webView.reload();
         }
