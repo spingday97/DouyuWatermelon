@@ -292,8 +292,8 @@
     el.innerHTML = '<div class="hd"><span id="wm9_ttl">🍉 挂机</span><span id="wm9_fold" style="background:rgba(255,255,255,.16);padding:0 7px;border-radius:6px;cursor:pointer">＋</span></div>' +
       '<div class="bd">' +
       '<div class="row"><span class="k">状态</span><b id="wm9_run">–</b></div>' +
-      '<div class="row"><span>掉落等级</span><select id="wm9_lv"></select></div>' +
-      '<div class="row"><span>清扫线</span><select id="wm9_line"><option value="10">敲L10(假锤)</option><option value="11">敲L11(真锤)</option></select></div>' +
+      '<div class="row"><span>掉落等级</span><span style="display:flex;align-items:center;gap:4px"><button id="wm9_lv_dec" style="background:#242938;border:1px solid #353C50;padding:1px 7px">－</button><b id="wm9_lv_txt" style="min-width:24px;text-align:center">L9</b><button id="wm9_lv_inc" style="background:#242938;border:1px solid #353C50;padding:1px 7px">＋</button></span></div>' +
+      '<div class="row"><span>清扫线</span><button id="wm9_line_btn" style="background:#242938;border:1px solid #353C50;padding:2px 8px">敲L10(假锤)</button></div>' +
       '<div class="row"><span>合出N个L11换局</span><input id="wm9_reopen11" type="text" inputmode="numeric" style="width:40px;text-align:right"></div>' +
       '<div class="row"><span>直合</span><input type="checkbox" id="wm9_merge"></div>' +
       '<div class="row"><span>清扫器</span><input type="checkbox" id="wm9_sweep"></div>' +
@@ -312,13 +312,11 @@
       '<div class="btns"><button id="wm9_go" style="background:#FF6A3D">▶ 开跑</button><button id="wm9_halt" style="background:#374151">■ 停止</button></div>' +
       '</div>';
     document.body.appendChild(el);
-
-    var sel = el.querySelector('#wm9_lv');
-    for (var i = 1; i <= 11; i++) { var o = document.createElement('option'); o.value = i; o.textContent = 'L' + i; sel.appendChild(o); }
-    sel.value = String(CFG.feedLevel);
-    sel.onchange = function (e) { CFG.feedLevel = Number(e.target.value) || 9; };
-    el.querySelector('#wm9_line').value = String(CFG.sweepLine);
-    el.querySelector('#wm9_line').onchange = function (e) { CFG.sweepLine = Number(e.target.value) === 11 ? 11 : 10; };
+var lvTxt = el.querySelector('#wm9_lv_txt'); lvTxt.textContent = 'L' + CFG.feedLevel;
+   el.querySelector('#wm9_lv_dec').onclick = function () { CFG.feedLevel = Math.max(1, CFG.feedLevel - 1); lvTxt.textContent = 'L' + CFG.feedLevel; };
+    el.querySelector('#wm9_lv_inc').onclick = function () { CFG.feedLevel = Math.min(11, CFG.feedLevel + 1); lvTxt.textContent = 'L' + CFG.feedLevel; };
+    var lineBtn = el.querySelector('#wm9_line_btn'); lineBtn.textContent = CFG.sweepLine === 11 ? '敲L11(真锤)' : '敲L10(假锤)';
+    lineBtn.onclick = function () { CFG.sweepLine = CFG.sweepLine === 11 ? 10 : 11; lineBtn.textContent = CFG.sweepLine === 11 ? '敲L11(真锤)' : '敲L10(假锤)'; };
     el.querySelector('#wm9_reopen11').value = String(CFG.reopenAtL11);
     el.querySelector('#wm9_reopen11').onchange = function (e) { var n = Number(e.target.value); CFG.reopenAtL11 = (isFinite(n) && n > 0) ? Math.round(n) : 0; };
     el.querySelector('#wm9_merge').checked = CFG.mergeOn;
