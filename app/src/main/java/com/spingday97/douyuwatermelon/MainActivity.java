@@ -6,6 +6,8 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.widget.PopupMenu;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -68,21 +70,42 @@ public class MainActivity extends Activity {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setBackgroundColor(Color.parseColor("#1C212B"));
-        int padH = dp(6);
-        int padV = dp(6);
-        bar.setPadding(padH, padV, padH, padV);
+bar.setBackgroundColor(Color.parseColor("#161922"));
+bar.setPadding(dp(10), dp(8), dp(10), dp(8));
 
-        bar.addView(makeBtn("活动", "#FF6A3D", v -> webView.loadUrl(getGameUrl())));
-        btnRoom = makeBtn("房:" + currentRid, "#374151", v -> showRoomDialog());
-        bar.addView(btnRoom);
-        bar.addView(makeBtn("登录", "#2D3648", v -> webView.loadUrl(LOGIN_URL)));
-        bar.addView(makeBtn("悬浮", "#2563EB", v -> enterFloatingMode()));
-        btnKeepScreen = makeBtn("常亮", "#2D6A4F", v -> toggleKeepScreen());
-        bar.addView(btnKeepScreen);
-        btnScript = makeBtn("脚本", "#2D6A4F", v -> toggleScript());
-        bar.addView(btnScript);
-        bar.addView(makeBtn("诊断", "#4B5563", v -> runDiag()));
+btnRoom = makePill("\uD83C\uDF49 房:" + currentRid, "#242938", "#353C50", v -> showRoomDialog());
+bar.addView(btnRoom);
+bar.addView(makePill("活动", "#FF6A3D", null, v -> webView.loadUrl(getGameUrl())));
+bar.addView(makePill("悬浮", "#2563EB", null, v -> enterFloatingMode()));
+btnKeepScreen = makePill("\u25CF 常亮",
+keepScreenOn ? "#1F3B2E" : "#242938",
+keepScreenOn ? "#2D6A4F" : "#353C50",
+v -> toggleKeepScreen());
+bar.addView(btnKeepScreen);
+
+View spacer = new View(this);
+spacer.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
+bar.addView(spacer);
+
+TextView btnMore = makePill("\u22EF", "#242938", "#353C50", null);
+((LinearLayout.LayoutParams) btnMore.getLayoutParams()).rightMargin = 0;
+btnMore.setOnClickListener(v -> {
+PopupMenu popup = new PopupMenu(this, v);
+popup.getMenu().add(0, 1, 0, "登录斗鱼账号");
+popup.getMenu().add(0, 2, 1, "刷新页面");
+popup.getMenu().add(0, 3, 2, "挂机脚本：" + (scriptEnabled ? "已开启" : "已关闭"));
+popup.getMenu().add(0, 4, 3, "诊断与导入脚本");
+popup.setOnMenuItemClickListener(item -> {
+int id = item.getItemId();
+if (id == 1) { webView.loadUrl(LOGIN_URL); return true; }
+if (id == 2) { webView.reload(); return true; }
+if (id == 3) { toggleScript(); return true; }
+if (id == 4) { runDiag(); return true; }
+return false;
+});
+popup.show();
+});
+bar.addView(btnMore);
 
         root.addView(bar, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -239,26 +262,36 @@ webView.reload();
         }
     }
 
-    private TextView makeBtn(String text, String bgHex, View.OnClickListener listener) {
-        TextView tv = new TextView(this);
-        tv.setText(text);
-        tv.setTextColor(Color.WHITE);
-        tv.setTextSize(11);
-        tv.setPadding(dp(6), dp(4), dp(6), dp(4));
-        tv.setBackgroundColor(Color.parseColor(bgHex));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.leftMargin = dp(4);
-        tv.setLayoutParams(lp);
-        tv.setOnClickListener(listener);
-        return tv;
-    }
+   private TextView makePill(String text, String bgHex, String strokeHex, View.OnClickListener listener) {
+TextView tv = new TextView(this);
+tv.setText(text);
+tv.setTextColor(Color.WHITE);
+tv.setTextSize(12);
+tv.setPadding(dp(10), dp(6), dp(10), dp(6));
+GradientDrawable gd = new GradientDrawable();
+gd.setColor(Color.parseColor(bgHex));
+gd.setCornerRadius(dp(18));
+if (strokeHex != null) {
+gd.setStroke(dp(1), Color.parseColor(strokeHex));
+}
+tv.setBackground(gd);
+LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+LinearLayout.LayoutParams.WRAP_CONTENT,
+LinearLayout.LayoutParams.WRAP_CONTENT);
+lp.rightMargin = dp(6);
+tv.setLayoutParams(lp);
+tv.setOnClickListener(listener);
+return tv;
+   }
 
     private void toggleKeepScreen() {
         keepScreenOn = !keepScreenOn;
         applyKeepScreen();
-        btnKeepScreen.setBackgroundColor(Color.parseColor(keepScreenOn ? "#2D6A4F" : "#4B5563"));
+      ;GradientDrawable gd = new GradientDrawable();
+gd.setColor(Color.parseColor(keepScreenOn ? "#1F3B2E" : "#242938"));
+gd.setCornerRadius(dp(18));
+gd.setStroke(dp(1), Color.parseColor(keepScreenOn ? "#2D6A4F" : "#353C50"));
+btnKeepScreen.setBackground(gd);
         Toast.makeText(this, keepScreenOn ? "已开启屏幕常亮" : "已关闭屏幕常亮", Toast.LENGTH_SHORT).show();
     }
 
@@ -271,8 +304,8 @@ webView.reload();
     }
 
     private void toggleScript() {
-        scriptEnabled = !scriptEnabled;
-        btnScript.setBackgroundColor(Color.parseColor(scriptEnabled ? "#2D6A4F" : "#4B5563"));
+      scriptEnabled = !scriptEnabled;
+        // btnScript.setBackgroundColor(Color.parseColor(scriptEnabled ? "#2D6A4F" : "#4B5563"));
         if (scriptEnabled) {
             injectWatermelon();
             Toast.makeText(this, "已开启并注入挂机脚本", Toast.LENGTH_SHORT).show();
