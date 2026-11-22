@@ -2,10 +2,13 @@ package com.spingday97.douyuwatermelon;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -15,6 +18,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -24,6 +28,7 @@ public class MainActivity extends Activity {
             "https://www.douyu.com/pages/vibe-lab-act202607-game/home?dykeepalive=1&isAnchorSide=0&rid=217331&isLandscape=0";
     private static final String LOGIN_URL = "https://passport.douyu.com/";
 
+    private FrameLayout webContainer;
     private WebView webView;
     private boolean keepScreenOn = true;
     private boolean scriptEnabled = true;
@@ -46,20 +51,20 @@ public class MainActivity extends Activity {
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setBackgroundColor(Color.parseColor("#1C212B"));
-        int padH = dp(10);
+        int padH = dp(8);
         int padV = dp(6);
         bar.setPadding(padH, padV, padH, padV);
 
         TextView title = new TextView(this);
-        title.setText("🍉 大西瓜");
+        title.setText("🍉");
         title.setTextColor(Color.WHITE);
-        title.setTextSize(14);
-        title.getPaint().setFakeBoldText(true);
+        title.setTextSize(15);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         bar.addView(title, titleLp);
 
         bar.addView(makeBtn("活动页", "#FF6A3D", v -> webView.loadUrl(GAME_URL)));
         bar.addView(makeBtn("登录", "#2D3648", v -> webView.loadUrl(LOGIN_URL)));
+        bar.addView(makeBtn("悬浮", "#2563EB", v -> enterFloatingMode()));
         btnKeepScreen = makeBtn("常亮:开", "#2D6A4F", v -> toggleKeepScreen());
         bar.addView(btnKeepScreen);
         btnScript = makeBtn("脚本:开", "#2D6A4F", v -> toggleScript());
@@ -70,49 +75,91 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        webView = new WebView(this);
-        WebSettings ws = webView.getSettings();
-        ws.setJavaScriptEnabled(true);
-        ws.setDomStorageEnabled(true);
-        ws.setDatabaseEnabled(true);
-        ws.setUseWideViewPort(true);
-        ws.setLoadWithOverviewMode(true);
-        ws.setMediaPlaybackRequiresUserGesture(false);
-        ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-
-        CookieManager cm = CookieManager.getInstance();
-        cm.setAcceptCookie(true);
-        cm.setAcceptThirdPartyCookies(webView, true);
-
-        webView.setWebChromeClient(new WebChromeClient());
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                String url = request.getUrl().toString();
-                if (url.startsWith("http://") || url.startsWith("https://")) {
-                    return false;
-                }
-                return true;
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                CookieManager.getInstance().flush();
-                if (scriptEnabled && url != null && url.contains("douyu.com")) {
-                    injectWatermelon();
-                    handler.postDelayed(() -> injectWatermelon(), 1500);
-                    handler.postDelayed(() -> injectWatermelon(), 3500);
-                }
-            }
-        });
-
-        root.addView(webView, new LinearLayout.LayoutParams(
+        webContainer = new FrameLayout(this);
+        root.addView(webContainer, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         setContentView(root);
         applyKeepScreen();
-        webView.loadUrl(GAME_URL);
+
+        boolean isNew = (WebViewHolder.webView == null);
+        if (isNew) {
+            webView = new WebView(getApplicationContext());
+            WebSettings ws = webView.getSettings();
+            ws.setJavaScriptEnabled(true);
+            ws.setDomStorageEnabled(true);
+            ws.setDatabaseEnabled(true);
+            ws.setUseWideViewPort(true);
+            ws.setLoadWithOverviewMode(true);
+            ws.setMediaPlaybackRequiresUserGesture(false);
+            ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+
+            CookieManager cm = CookieManager.getInstance();
+            cm.setAcceptCookie(true);
+            cm.setAcceptThirdPartyCookies(webView, true);
+
+            webView.setWebChromeClient(new WebChromeClient());
+            webView.setWebViewClient(new WebViewClient() {
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                    String url = request.getUrl().toString();
+                    return !(url.startsWith("http://") || url.startsWith("https://"));
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    super.onPageFinished(view, url);
+                    CookieManager.getInstance().flush();
+                    if (scriptEnabled && url != null && url.contains("douyu.com")) {
+                        injectWatermelon();
+                        handler.postDelayed(() -> injectWatermelon(), 1500);
+                        handler.postDelayed(() -> injectWatermelon(), 3500);
+                    }
+                }
+            });
+            WebViewHolder.webView = webView;
+        } else {
+            webView = WebViewHolder.webView;
+        }
+
+        attachWebView();
+        if (isNew) {
+            webView.loadUrl(GAME_URL);
+        }
+    }
+
+    private void attachWebView() {
+        stopService(new Intent(this, FloatingKeepAliveService.class));
+        WebViewHolder.isFloating = false;
+        WebViewHolder.detachFromParent();
+        if (webView != null && webContainer != null) {
+            webView.setVisibility(View.VISIBLE);
+            webView.onResume();
+            webContainer.addView(webView, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT));
+        }
+    }
+
+    private void enterFloatingMode() {
+        if (!Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "请先授予「悬浮窗 / 出现在其他应用上层」权限", Toast.LENGTH_LONG).show();
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+            return;
+        }
+        WebViewHolder.detachFromParent();
+        startForegroundService(new Intent(this, FloatingKeepAliveService.class));
+        moveTaskToBack(true);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (WebViewHolder.isFloating || (webView != null && webView.getParent() != webContainer)) {
+            attachWebView();
+        }
     }
 
     private TextView makeBtn(String text, String bgHex, View.OnClickListener listener) {
@@ -120,12 +167,12 @@ public class MainActivity extends Activity {
         tv.setText(text);
         tv.setTextColor(Color.WHITE);
         tv.setTextSize(11);
-        tv.setPadding(dp(8), dp(4), dp(8), dp(4));
+        tv.setPadding(dp(7), dp(4), dp(7), dp(4));
         tv.setBackgroundColor(Color.parseColor(bgHex));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.leftMargin = dp(5);
+        lp.leftMargin = dp(4);
         tv.setLayoutParams(lp);
         tv.setOnClickListener(listener);
         return tv;
