@@ -10,7 +10,7 @@
     dropBaseMs: 500, dropJitter: 0.35, pauseEvery: 22, pauseMs: 1300,
     spendCoins: true, coinCost: 2, dynScore: true, scoreTarget: 30000,
     scoreFree: 20000, scoreRaceFirst: 5000, scoreRaceSecond: 20000,
-    reopenMin: 1.5, reopenMax: 4.0, failBackoffSec: 60, autoRun: true
+    reopenMin: 1.5, reopenMax: 4.0, failBackoffSec: 60, autoRun: false
   };
 
   var S = {
