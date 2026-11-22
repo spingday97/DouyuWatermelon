@@ -279,7 +279,7 @@
     var st = document.createElement('style');
     st.textContent = '#wm9_panel{position:fixed;top:10px;right:8px;z-index:999999;width:214px;max-height:76vh;overflow-y:auto;background:rgba(22,25,34,.92);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35);font:11px/1.45 sans-serif;color:#F3F4F6}' +
       '#wm9_panel.min{width:auto;overflow:hidden}#wm9_panel.min .bd{display:none}' +
-      '#wm9_panel .hd{background:rgba(255,255,255,.06);color:#fff;padding:7px 10px;font-weight:700;display:flex;align-items:center;gap:6px;position:sticky;top:0}' +
+      '#wm9_panel .hd{background:rgba(255,255,255,.06);color:#fff;padding:7px 10px;font-weight:700;display:flex;align-items:center;gap:6px;position:sticky;top:0;touch-action:none;user-select:none;cursor:move}' +
       '#wm9_panel .bd{padding:7px 10px}#wm9_panel .row{display:flex;justify-content:space-between;align-items:center;margin:4px 0}' +
       '#wm9_panel .k{color:#9CA3AF}' +
       '#wm9_panel select,#wm9_panel input[type=text]{background:#242938;color:#fff;border:1px solid #353C50;border-radius:8px;padding:2px 6px;font-size:11px}' +
@@ -334,7 +334,13 @@ var lvTxt = el.querySelector('#wm9_lv_txt'); lvTxt.textContent = 'L' + CFG.feedL
 
     el.querySelector('#wm9_go').onclick = function () { S.userHalt = false; S.running = true; };
     el.querySelector('#wm9_halt').onclick = function () { S.userHalt = true; S.running = false; };
+ var hd = el.querySelector('.hd'); var dragging = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0, justDragged = false;
+ function clampPos(nx, ny) { var maxX = Math.max(4, window.innerWidth - el.offsetWidth - 4); var maxY = Math.max(4, window.innerHeight - 40); return [Math.max(4, Math.min(maxX, nx)), Math.max(4, Math.min(maxY, ny))]; }
+ hd.addEventListener('touchstart', function (e) { if (!e.touches || !e.touches[0]) return; var rect = el.getBoundingClientRect(); sx = e.touches[0].clientX; sy = e.touches[0].clientY; ox = rect.left; oy = rect.top; dragging = true; moved = false; }, { passive: true });
+ hd.addEventListener('touchmove', function (e) { if (!dragging || !e.touches || !e.touches[0]) return; var dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy; if (!moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) moved = true; if (moved) { e.preventDefault(); var pos = clampPos(ox + dx, oy + dy); el.style.left = pos[0] + 'px'; el.style.top = pos[1] + 'px'; el.style.right = 'auto'; } }, { passive: false });
+ hd.addEventListener('touchend', function () { dragging = false; if (moved) { justDragged = true; setTimeout(function () { justDragged = false; }, 120); } });
     el.querySelector('#wm9_fold').onclick = function () {
+    if (justDragged) return;
       var min = el.classList.toggle('min');
       el.querySelector('#wm9_fold').textContent = min ? '＋' : '–';
     };
