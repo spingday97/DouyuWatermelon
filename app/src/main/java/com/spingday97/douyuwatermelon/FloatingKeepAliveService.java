@@ -63,7 +63,7 @@ public class FloatingKeepAliveService extends Service {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         if (windowManager == null) return;
 
-        int w = dp(104);
+        int w = dp(108);
         int h = dp(38);
         params = new WindowManager.LayoutParams(
                 w, h,
@@ -89,13 +89,13 @@ public class FloatingKeepAliveService extends Service {
 
         // Compact pill overlay on top
         TextView badge = new TextView(this);
-        badge.setText("🍉 挂机中 ↗");
+        badge.setText("🍉 ● 挂机中 ↗");
         badge.setTextColor(Color.WHITE);
         badge.setTextSize(11);
         badge.setGravity(Gravity.CENTER);
         badge.getPaint().setFakeBoldText(true);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#F0181B24"));
+        bg.setColor(Color.parseColor("#F2161922"));
         bg.setCornerRadius(dp(19));
         bg.setStroke(dp(1), Color.parseColor("#FF6A3D"));
         badge.setBackground(bg);
